@@ -22,7 +22,19 @@ IMAP_LISTEN=127.0.0.1:1143 ./target/release/imap-relay-netease
 
 ## Traefik / Docker 私网
 
-中继与 Traefik 同处私有 Docker 网络时，设置 `IMAP_LISTEN=0.0.0.0:143`，不要对外发布中继端口；只发布 Traefik 的 `993/tcp`。确保网络允许中继连接上游。以下为 Traefik 动态配置（静态配置另设 `imaps` 入口 `:993`，并为 `mail.example.com` 配置证书）：
+从项目根目录构建并启动（示例假设 Traefik 已连接到 `traefik` 网络）：
+
+```sh
+docker build --pull -t imap-relay-netease .
+docker run -d --name imap-relay --network traefik --restart unless-stopped \
+  --init --cap-drop=ALL \
+  --sysctl net.ipv4.ip_unprivileged_port_start=143 \
+  imap-relay-netease
+```
+
+镜像使用 musl 静态构建，以 Distroless Debian 13 非 root 用户运行，默认监听 `0.0.0.0:143`。`--init` 转发停止信号；`--sysctl` 允许容器网络命名空间内的非 root 进程绑定 143 及以上端口，无需额外 capability。不要搭配 host 网络。如果部署平台不允许设置该参数，可去掉 `--sysctl`，加上 `-e IMAP_LISTEN=0.0.0.0:1143`，并将下方 Traefik 后端端口同步改为 `1143`。
+
+不要对外发布中继端口；只发布 Traefik 的 `993/tcp`。确保网络允许中继连接上游。以下为 Traefik 动态配置（静态配置另设 `imaps` 入口 `:993`，并为 `mail.example.com` 配置证书）：
 
 ```yaml
 tcp:
