@@ -61,3 +61,7 @@ tcp:
 - 认证后使用有背压的双向字节流，不解析或整封缓冲邮件。`LIST`、`UID FETCH`、`APPEND`、`IDLE` 和其他指令是否可用取决于上游。
 
 本地协议测试：`cargo test --locked`。
+
+## 许可证
+
+本项目采用 [MIT 许可证](LICENSE)。

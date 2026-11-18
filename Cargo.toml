@@ -2,6 +2,7 @@
 name = "imap-relay-netease"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
 
 [dependencies]
 async-imap = { version = "0.12", default-features = false, features = ["runtime-tokio"] }
