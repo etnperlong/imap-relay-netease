@@ -1,28 +1,42 @@
-# imap-relay-netease
+<h1 align="center">imap-relay-netease</h1>
 
-Rust/Tokio IMAP 中继。标准客户端或邮件归档工具无需实现 `ID` 扩展：中继在上游认证成功后、转发下一条命令前插入 [RFC 2971 `ID`](https://www.rfc-editor.org/rfc/rfc2971)。这是针对[网易邮箱 `Unsafe Login` 的官方接入要求](https://help.mail.163.com/faqDetail.do?code=d7a5dc8471cd0c0e8b4b8f4f8e49998b374173cfe9171305fa1ce630d7f67ac2eda07326646e6eb0)，不替代账户认证。设计参考 [163-imap-proxy](https://github.com/jizhi0v0/163-imap-proxy)。
+<p align="center">
+  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-Tokio-000000?style=flat-square&amp;logo=rust" alt="Rust / Tokio"></a>
+  <a href="https://www.rfc-editor.org/rfc/rfc2971"><img src="https://img.shields.io/badge/IMAP-RFC_2971-2563eb?style=flat-square" alt="IMAP RFC 2971"></a>
+  <a href="Dockerfile"><img src="https://img.shields.io/badge/Docker-Distroless-2496ed?style=flat-square&amp;logo=docker&amp;logoColor=white" alt="Docker / Distroless"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-15803d?style=flat-square" alt="MIT License"></a>
+</p>
 
-## 启动
+面向网易邮箱的 IMAP 中继。替客户端发送 [RFC 2971 `ID`](https://www.rfc-editor.org/rfc/rfc2971)，解决缺少 `ID` 导致的 [`Unsafe Login`](https://help.mail.163.com/faqDetail.do?code=d7a5dc8471cd0c0e8b4b8f4f8e49998b374173cfe9171305fa1ce630d7f67ac2eda07326646e6eb0)，无需修改邮件客户端或归档工具。
+
+## 能力
+
+- **自动发送 `ID`**：通常在上游认证后、转发下一条命令前发送，默认使用 Apple Mail 预设。上游拒绝 `ID` 时，中继记录警告并继续转发。
+- **流式归档**：握手后按字节双向转发，不解析或整封缓冲邮件；`UID FETCH`、`APPEND` 和 `IDLE` 等命令由上游处理。
+- **独立部署**：每个实例连接一个上游，可配置为 163、126 或自定义 IMAP 主机。上游始终使用带证书校验的隐式 TLS。
+
+## 快速开始
 
 ```sh
-cargo build --release --locked
-IMAP_LISTEN=127.0.0.1:1143 ./target/release/imap-relay-netease
+IMAP_LISTEN=127.0.0.1:1143 cargo run --release --locked
 ```
 
-本地测试时，将客户端连接到 `127.0.0.1:1143`，关闭客户端 TLS 和 STARTTLS。网易侧需开启 IMAP，客户端使用完整邮箱地址和网易生成的**客户端授权码**。不指定 `IMAP_LISTEN` 时监听 `127.0.0.1:143`；系统可能要求绑定低端口的权限。
+先在网易网页端开启 IMAP 并生成**客户端授权码**。将客户端连到 `127.0.0.1:1143`，关闭 TLS 和 STARTTLS，以完整邮箱地址和授权码登录。
+
+## 配置
 
 | 环境变量 | 默认值 | 用途 |
 | --- | --- | --- |
-| `IMAP_LISTEN` | `127.0.0.1:143` | 明文监听地址，格式 `IP:PORT` |
-| `IMAP_UPSTREAM_HOST` | `imap.163.com` | 上游主机名，用于连接和证书验证。126 可填 `imap.126.com`；企业或学校邮箱填写服务商给出的地址 |
-| `IMAP_UPSTREAM_PORT` | `993` | 上游隐式 TLS 端口，不支持明文或 STARTTLS 上游 |
-| `IMAP_ID_PROFILE` | `apple-mail` | `apple-mail`、`thunderbird`、`outlook` 或 `foxmail`；预设只发送产品名和厂商 |
+| `IMAP_LISTEN` | `127.0.0.1:143`（容器内 `0.0.0.0:143`） | 明文监听地址，格式为 `IP:PORT` |
+| `IMAP_UPSTREAM_HOST` | `imap.163.com` | 上游主机名，用于连接和证书校验；126 邮箱可填 `imap.126.com` |
+| `IMAP_UPSTREAM_PORT` | `993` | 上游隐式 TLS 端口 |
+| `IMAP_ID_PROFILE` | `apple-mail` | 也可设为 `thunderbird`、`outlook` 或 `foxmail` |
 
-一个实例连接一个上游。需要同时归档多个不同上游时，为每个上游启动一个实例。上游 TLS 使用系统信任库验证证书；私有 CA 可通过 `SSL_CERT_FILE` 指定。
+私有上游 CA 可通过 `SSL_CERT_FILE` 指定。中继不记录 IMAP 命令、凭据或邮件。
 
-## Traefik / Docker 私网
+## Docker 与 Traefik
 
-从项目根目录构建并启动（示例假设 Traefik 已连接到 `traefik` 网络）：
+[Dockerfile](Dockerfile) 使用 musl 静态构建和 Distroless Debian 13 非 root 运行镜像。假设 Traefik 已加入 `traefik` 网络，从项目根目录运行：
 
 ```sh
 docker build --pull -t imap-relay-netease .
@@ -32,9 +46,12 @@ docker run -d --name imap-relay --network traefik --restart unless-stopped \
   imap-relay-netease
 ```
 
-镜像使用 musl 静态构建，以 Distroless Debian 13 非 root 用户运行，默认监听 `0.0.0.0:143`。`--init` 转发停止信号；`--sysctl` 允许容器网络命名空间内的非 root 进程绑定 143 及以上端口，无需额外 capability。不要搭配 host 网络。如果部署平台不允许设置该参数，可去掉 `--sysctl`，加上 `-e IMAP_LISTEN=0.0.0.0:1143`，并将下方 Traefik 后端端口同步改为 `1143`。
+`--sysctl` 允许非 root 在容器自己的网络命名空间绑定 `143`，不要搭配 host 网络。若平台不允许设置它，去掉 `--sysctl`，用 `-e IMAP_LISTEN=0.0.0.0:1143`，并同步修改后端端口。
 
-不要对外发布中继端口；只发布 Traefik 的 `993/tcp`。确保网络允许中继连接上游。以下为 Traefik 动态配置（静态配置另设 `imaps` 入口 `:993`，并为 `mail.example.com` 配置证书）：
+> [!WARNING]
+> Traefik 到中继仍是明文，包含授权码和邮件内容。请将中继放在可信私网，不发布容器端口；只对外开放 Traefik 的 `993/tcp`。
+
+先在 Traefik 静态配置中定义 `imaps` 入口 `:993` 并配置域名证书，再添加 TCP 路由：
 
 ```yaml
 tcp:
@@ -52,16 +69,16 @@ tcp:
           - address: "imap-relay:143"
 ```
 
-客户端连接 `mail.example.com:993` 并启用隐式 TLS。Traefik 到中继这段仍是明文，包含授权码和邮件内容，需隔离在可信网络。中继不记录 IMAP 命令、凭据或邮件。
+客户端连接 `mail.example.com:993`，启用隐式 TLS。中继不提供 STARTTLS。
 
-## 协议行为
+## 验证
 
-- 认证阶段保留原始标签、SASL 交互和 IMAP 字面量。对已知可协商安全层的 SASL 机制，改在认证前发送 `ID`，避免在加密或完整性保护开启后插入明文命令。
-- 隐藏注入的 `ID` 回复；若上游返回 `NO` 或 `BAD`，记录警告并继续，由上游决定后续命令是否可用。
-- 认证后使用有背压的双向字节流，不解析或整封缓冲邮件。`LIST`、`UID FETCH`、`APPEND`、`IDLE` 和其他指令是否可用取决于上游。
+`cargo test --locked` 覆盖认证重试、SASL、`ID` 注入顺序和二进制邮件转发。
 
-本地协议测试：`cargo test --locked`。
+## 参考项目
 
-## 许可证
+设计参考 [jizhi0v0/163-imap-proxy](https://github.com/jizhi0v0/163-imap-proxy)。
+
+---
 
 本项目采用 [MIT 许可证](LICENSE)。
