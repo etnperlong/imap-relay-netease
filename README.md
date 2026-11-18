@@ -7,6 +7,8 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-15803d?style=flat-square" alt="MIT License"></a>
 </p>
 
+<p align="center">简体中文 · <a href="README_EN.md">English</a></p>
+
 面向网易邮箱的 IMAP 中继。替客户端发送 [RFC 2971 `ID`](https://www.rfc-editor.org/rfc/rfc2971)，解决缺少 `ID` 导致的 [`Unsafe Login`](https://help.mail.163.com/faqDetail.do?code=d7a5dc8471cd0c0e8b4b8f4f8e49998b374173cfe9171305fa1ce630d7f67ac2eda07326646e6eb0)，无需修改邮件客户端或归档工具。
 
 ## 能力
