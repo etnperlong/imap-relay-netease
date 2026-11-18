@@ -73,6 +73,18 @@ tcp:
 
 客户端连接 `mail.example.com:993`，启用隐式 TLS。中继不提供 STARTTLS。
 
+## 发布与镜像
+
+推送与 `Cargo.toml` 版本一致的 `vX.Y.Z` 标签会触发 GitHub Release，为 Linux（musl，完全静态）、Windows（静态 C 运行库，仅依赖系统 DLL）和 macOS（系统库与框架，非完全静态）各提供 amd64 与 arm64 二进制。Linux 和 macOS 使用 `.tar.gz`，Windows 使用 `.zip`，每个压缩包内含可执行文件和 `LICENSE`，并附 `SHA256SUMS`。
+
+同一标签会构建 `ghcr.io/<owner>/imap-relay-netease` 的 `linux/amd64` 和 `linux/arm64` 镜像。稳定版使用 `vX.Y.Z` 和 `latest`（最近推送的稳定镜像），预发布只使用精确标签（如 `vX.Y.Z-rc.1`）。将示例中的 `your-github-owner` 改为仓库所有者的小写名称：
+
+```sh
+docker pull ghcr.io/your-github-owner/imap-relay-netease:latest
+```
+
+发布标签需带 `v` 前缀且不含 `+` 构建元数据。可在 Actions 手动运行 `Release` 来验证构建，不会推送镜像或创建 Release。首次发布 GHCR 镜像后，如需匿名拉取，请将包设为公开。
+
 ## 验证
 
 `cargo test --locked` 覆盖认证重试、SASL、`ID` 注入顺序和二进制邮件转发。

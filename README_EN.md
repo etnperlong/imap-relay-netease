@@ -73,6 +73,18 @@ tcp:
 
 Connect your mail client to `mail.example.com:993` with implicit TLS enabled. The relay does not offer STARTTLS.
 
+## Releases and images
+
+Pushing a `vX.Y.Z` tag that matches the `Cargo.toml` version starts a GitHub Release providing amd64 and arm64 binaries for Linux (musl, fully static), Windows (static C runtime, system DLLs only), and macOS (system libraries and frameworks, not fully static). Linux and macOS artifacts are `.tar.gz`, Windows artifacts are `.zip`; each archive contains the executable and `LICENSE`, and `SHA256SUMS` covers them all.
+
+The same tag builds a `linux/amd64` and `linux/arm64` image at `ghcr.io/<owner>/imap-relay-netease`. Stable releases get `vX.Y.Z` and `latest` (the most recently pushed stable image). Prereleases get only their exact tag, such as `vX.Y.Z-rc.1`. Replace `your-github-owner` with the lowercase repository owner:
+
+```sh
+docker pull ghcr.io/your-github-owner/imap-relay-netease:latest
+```
+
+Release tags require the `v` prefix and cannot contain `+` build metadata. Run `Release` manually in Actions to check the builds without pushing images or creating a release. After the first GHCR publish, make the package public if you want to allow anonymous pulls.
+
 ## Verification
 
 Run `cargo test --locked` to test authentication retries, SASL, `ID` ordering, and binary message forwarding.
